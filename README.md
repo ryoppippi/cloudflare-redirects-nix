@@ -28,6 +28,13 @@ to = "/new-page"
 # status defaults to 301
 ```
 
+This generates the following `_redirects` file:
+
+```
+/* /index.html 200
+/old-page /new-page 301
+```
+
 ### Use in your derivation
 
 ```nix
