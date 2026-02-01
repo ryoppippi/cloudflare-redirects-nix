@@ -1,8 +1,7 @@
 { lib }:
-tomlPath:
+redirects:
 let
   formatRedirect = import ./format-redirect.nix { inherit lib; };
-  redirectsToml = lib.importTOML tomlPath;
-  lines = map formatRedirect redirectsToml.redirects;
+  lines = map formatRedirect redirects;
 in
 lib.concatStringsSep "\n" lines

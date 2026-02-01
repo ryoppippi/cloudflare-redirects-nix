@@ -4,9 +4,9 @@
 }:
 let
   inherit (pkgs) lib;
-  inherit (cloudflareRedirectsLib) generateRedirects;
+  inherit (cloudflareRedirectsLib) generateRedirects generateRedirectsFromList;
 
-  testCases = [
+  tomlTestCases = [
     {
       name = "basic-redirect";
       toml = ''
@@ -51,7 +51,53 @@ let
     }
   ];
 
-  runTest =
+  listTestCases = [
+    {
+      name = "list-basic-redirect";
+      redirects = [
+        {
+          from = "/old";
+          to = "/new";
+        }
+      ];
+      expected = "/old /new 301";
+    }
+    {
+      name = "list-redirect-with-status";
+      redirects = [
+        {
+          from = "/*";
+          to = "/index.html";
+          status = 200;
+        }
+      ];
+      expected = "/* /index.html 200";
+    }
+    {
+      name = "list-multiple-redirects";
+      redirects = [
+        {
+          from = "/a";
+          to = "/b";
+        }
+        {
+          from = "/c";
+          to = "/d";
+          status = 302;
+        }
+      ];
+      expected = ''
+        /a /b 301
+        /c /d 302'';
+    }
+    {
+      name = "list-empty-redirects";
+      redirects = [ ];
+      expected = "";
+    }
+  ];
+
+  runTomlTest =
     {
       name,
       toml,
@@ -79,7 +125,36 @@ let
       fi
     '';
 
-  testDerivations = map runTest testCases;
+  runListTest =
+    {
+      name,
+      redirects,
+      expected,
+    }:
+    let
+      result = generateRedirectsFromList redirects;
+    in
+    pkgs.runCommand "test-redirects-${name}" { } ''
+      expected=${lib.escapeShellArg expected}
+      result=${lib.escapeShellArg result}
+
+      if [ "$expected" = "$result" ]; then
+        echo "PASS: ${name}"
+        mkdir -p $out
+        touch $out/.ok
+      else
+        echo "FAIL: ${name}"
+        echo "Expected:"
+        echo "$expected"
+        echo "Got:"
+        echo "$result"
+        exit 1
+      fi
+    '';
+
+  tomlTestDerivations = map runTomlTest tomlTestCases;
+  listTestDerivations = map runListTest listTestCases;
+  testDerivations = tomlTestDerivations ++ listTestDerivations;
 in
 pkgs.runCommand "cloudflare-redirects-tests"
   {
